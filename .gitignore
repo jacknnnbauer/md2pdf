@@ -1,0 +1,14 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# md2pdf 中间产物（--keep 时产生）
+_m2p_*
+*.log
+
+# 系统
+Thumbs.db
+desktop.ini
+.DS_Store
