@@ -8,7 +8,11 @@
 python md2pdf.py 你的文档.md
 ```
 
-就这一行。输出同目录同名 `.pdf`。
+就这一行。输出同目录同名 `.pdf`。想换一种版式，加 `-s 样式名` 即可，共有 7 种内置样式（见[第 3.0 节](#30-内置样式)）：
+
+```bash
+python md2pdf.py 你的文档.md -s 公文
+```
 
 ![md2pdf 效果预览](assets/shots/00-hero.png)
 
@@ -208,6 +212,59 @@ python md2pdf.py examples/口语表达库_速查表册.md
 
 全部可选。命令行参数优先级高于 front-matter。
 
+### 3.0 内置样式
+
+一个样式 = 一整套版式：封面布局、字体、配色、标题、表格、提示框。不指定时用默认样式。
+
+| 样式名 | 中文名（也可直接用） | 长什么样 | 适合 |
+|---|---|---|---|
+| `default` | 默认 | 深蓝色块封面，雅黑正文，深色表头 | 通用正式文档 |
+| `gov` | 公文 / 公文汇报 | 仿宋正文，黑体 / 楷体标题，封面红色双线，段首缩进，章节连排不分页 | 机关、领导汇报材料 |
+| `steel` | 钢蓝 / 工程文件 | 左对齐封面，细线信息栏，底部签字栏 | 正式报送文件（现代） |
+| `graybl` | 灰蓝 / 技术文件 | 居中封面，宋体正文，双线章标题，底部签字栏 | 正式技术文件（稳重） |
+| `consult` | 咨询 / 咨询报告 | 大留白，三线表，核心结论框 | 客户汇报、方案比选 |
+| `intl` | 国际 / 国际双语 / 双语 | 藏青整页封面配金线，英文用衬线字体 | 外方客户、中英双语文件 |
+| `brief` | 简报 / 高管简报 | 暖灰封面，大号标题，深底结论框 | 领导简报、决策汇报 |
+
+![七种样式的封面](assets/styles/covers.png)
+
+<details>
+<summary><b>展开看每种样式的封面、目录、正文、表格页</b></summary>
+
+以下都是同一份 [`examples/口语表达库_速查表册.md`](examples/口语表达库_速查表册.md) 加上 `-s 样式名` 生成的，可以直接复现。
+
+![default](assets/styles/default.png)
+![gov](assets/styles/gov.png)
+![steel](assets/styles/steel.png)
+![graybl](assets/styles/graybl.png)
+![consult](assets/styles/consult.png)
+![intl](assets/styles/intl.png)
+![brief](assets/styles/brief.png)
+
+</details>
+
+三种选法，效果相同：
+
+```bash
+python md2pdf.py 报告.md -s gov          # 命令行，英文名
+python md2pdf.py 报告.md -s 公文         # 命令行，中文名
+python md2pdf.py --list-styles           # 忘了名字就列出来看
+```
+
+```yaml
+---
+style: 公文                               # 或写在 front-matter 里
+---
+```
+
+**样式只是垫底的默认值。** 你在 front-matter 或命令行里写的任何配置都会覆盖它，比如 `style: 公文` 再加 `break_before_h2: true`，就是公文样式但每章另起一页。`extra_css` 会追加在样式 CSS 之后，所以也能改样式里的任何细节。
+
+**签字栏**：`steel` 和 `graybl` 默认在封面底部加「编制 / 审核 / 批准」三栏签名线。其他样式想加就写 `signoff: true`（或命令行 `--signoff`）；想改栏目就给列表，如 `signoff: [编制, 校对, 审核, 批准]`；不想要就写 `signoff: false`。封面内容少时签字栏贴在页面底部，内容多时自动往下排，不会压住上面的内容。
+
+**封面只有一页。** `meta` 行数多、`notice` 很长、再加签字栏时，封面可能放不下。放不下的部分会被截掉，自检会报错并指出缺了什么（见第 12 章）。这是有意为之：如果不截断，Chrome 会把**整份文档**等比缩小来塞下封面，正文字号会被悄悄改小。
+
+> `gov` 样式用到仿宋、楷体、黑体，Windows 自带。公文标题的标准字体是方正小标宋，没装的话会用华文宋体加粗代替。
+
 ### 3.1 封面
 
 | 键 | 类型 | 默认 | 说明 |
@@ -269,6 +326,8 @@ python md2pdf.py examples/口语表达库_速查表册.md
 
 | 键 | 类型 | 默认 | 说明 |
 |---|---|---|---|
+| `style` | 字符串 | `default` | 内置样式，英文名或中文名，见 3.0 节 |
+| `signoff` | 布尔或列表 | 随样式 | 封面签字栏。`true` = 编制/审核/批准；列表 = 自定义栏目；`false` = 不要 |
 | `selfcheck` | 布尔 | `true` | 出片后自检空白页 / 占位符残留 / 内容溢出（见第 12 章）|
 | `strip_lead_quote` | 布尔 | `true` | 自动摘掉正文开头的 `>` 引用块 |
 | `md_extensions` | 列表 | — | 追加 Python-Markdown 扩展，如 `[footnotes, def_list]` |
@@ -283,7 +342,10 @@ python md2pdf.py examples/口语表达库_速查表册.md
 python md2pdf.py 源文件.md [选项]
 
   -o, --out PATH        输出路径（默认与源同名 .pdf）
-  --theme NAME          navy / slate / forest / crimson / ink
+  -s, --style NAME      内置样式，英文名或中文名（见 3.0 节）
+  --list-styles         列出全部内置样式
+  --signoff             封面加「编制 / 审核 / 批准」签字栏
+  --theme NAME          只换配色：navy / slate / forest / crimson / ink 等
   --paper NAME          a4 / letter / a3 / b5
   --landscape           横向
   --toc-depth {1,2}     目录层级
@@ -304,7 +366,7 @@ python md2pdf.py 源文件.md [选项]
 python md2pdf.py 纪要.md --no-cover --no-break
 
 # 宽表格清单：横向 + 小字号
-python md2pdf.py 工程量清单.md --landscape --font-size 9
+python md2pdf.py 参数对照表.md --landscape --font-size 9
 
 # 章节多、想要二级目录
 python md2pdf.py 手册.md --toc-depth 2
@@ -492,6 +554,10 @@ python md2pdf.py 文档.md --keep --preview 1 2 10
 
 ## 8. 想改样式
 
+先看 [3.0 节的内置样式](#30-内置样式)有没有合适的，能直接选就不用自己改。在某个样式基础上微调，就用下面的 `extra_css`。
+
+想新增一种自己的样式，在 `md2pdf.py` 的 `STYLES` 字典里照现有的格式加一项：`cfg` 写默认配置，`css` 写覆盖 CSS。
+
 ### 8.1 小改：front-matter 里加 `extra_css`
 
 ```yaml
@@ -664,6 +730,7 @@ extra_css: |
 | 机器残渣 | `@@H` `{{` `}}` `[object Object]` —— 出现即是 bug | **错误** |
 | 草稿标记 | `TODO` `XXX` `???` `待补` `待填` —— 也可能是正文在讨论它 | 提示 |
 | 内容溢出纸张 | 文本块超出页面边界（宽表格） | 提示 |
+| 封面被截断 | `meta` 的值、`notice` 最后一行、签字栏栏目没有全部出现在封面上 | **错误** |
 | 目录定位失败 | 一级标题在正文里找不到 | 提示 |
 
 关掉：front-matter 里写 `selfcheck: false`。

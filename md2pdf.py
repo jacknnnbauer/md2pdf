@@ -5,9 +5,12 @@ md2pdf —— 中文技术文档 Markdown 排版转 PDF
 
 用法:
     python md2pdf.py 文档.md
+    python md2pdf.py 文档.md -s 公文                 # 选内置样式
+    python md2pdf.py --list-styles                  # 查看全部样式
     python md2pdf.py 文档.md -o 输出.pdf --theme crimson --preview 1
 
 特性:
+    · 7 种内置样式（默认 / 公文 / 钢蓝 / 灰蓝 / 咨询 / 国际 / 简报）
     · YAML front-matter 配置封面与版式，无 front-matter 也能跑
     · 自动扫描 ## / ### 标题生成目录，多遍渲染回填真实页码
     · Chrome 无头浏览器排版（表格跨页表头重复、分页控制、中文字体栈）
@@ -62,6 +65,13 @@ THEMES = {
     "forest":  dict(main="#1E4620", dark="#0e2410", tint="#F5F9F5", band="#DCE8DC", accent="#8C6D1F"),
     "crimson": dict(main="#7B1E28", dark="#3d0f14", tint="#FAF6F6", band="#EDDCDE", accent="#1F3864"),
     "ink":     dict(main="#222222", dark="#000000", tint="#F7F7F7", band="#E2E2E2", accent="#A03030"),
+    # 以下供内置样式（STYLES）使用，也可单独 --theme 选用
+    "gov":     dict(main="#9B1B1F", dark="#000000", tint="#FFFFFF", band="#F3E3E3", accent="#9B1B1F"),
+    "steel":   dict(main="#2F4A68", dark="#1F2D3D", tint="#F7F9FB", band="#E3E9F0", accent="#2F4A68"),
+    "graybl":  dict(main="#1B2A3A", dark="#111111", tint="#FFFFFF", band="#DCE3EA", accent="#1B2A3A"),
+    "consult": dict(main="#0B5563", dark="#0A2533", tint="#F3F7F8", band="#D6EAEC", accent="#0B8A8F"),
+    "intl":    dict(main="#14264A", dark="#0B1730", tint="#F8F5EC", band="#EFE6CC", accent="#B8962E"),
+    "brief":   dict(main="#1F4D3F", dark="#10261F", tint="#F6F5F1", band="#E5EDE8", accent="#C8553D"),
 }
 
 PAPERS = {
@@ -73,6 +83,272 @@ PAPERS = {
 
 # 提示框（blockquote）配色固定为暖黄，与主色形成对比
 QUOTE_BG, QUOTE_BAR, QUOTE_FG = "#FFF8E6", "#E8A33D", "#8a5200"
+
+
+# ══════════════════════════════════════════════════════════════════
+#  1b. 内置样式：一个样式 = 一组默认配置 + 一段覆盖 CSS
+#      用户在 front-matter / 命令行写的任何配置都优先于样式默认值；
+#      用户的 extra_css 追加在样式 CSS 之后，因此也能覆盖样式。
+# ══════════════════════════════════════════════════════════════════
+_CSS_GOV = r"""
+body{ font-family:"FangSong","仿宋","STFangsong",serif; }
+.cover{ text-align:center; }
+.cover .band{ background:none !important; height:auto !important; padding:46mm 22mm 0 !important; color:#000; }
+.cover .kicker{ color:#9B1B1F; opacity:1; letter-spacing:4px; font-family:"SimHei"; font-size:12pt; margin-bottom:13mm; }
+.cover h1.t{ color:#000 !important; font-family:"STSong","SimSun",serif !important; font-weight:700 !important;
+             font-size:26pt !important; line-height:1.6 !important; letter-spacing:2px; }
+.cover .sub{ color:#333; opacity:1; font-family:"KaiTi","STKaiti",serif; font-size:14pt; margin-top:8mm; }
+.cover .body{ padding:14mm 34mm 0; }
+.cover .rule{ width:100%; height:0; background:none; border-top:2.6px solid #9B1B1F;
+              border-bottom:0.8px solid #9B1B1F; padding-top:1.3mm; margin:0 0 11mm; }
+.cover dl{ display:inline-block; align-self:center; text-align:left; font-size:13pt; line-height:1.95; }
+.cover dt{ color:#000; font-family:"SimHei"; }
+.cover .notice{ text-align:left; background:none; border:0; border-top:1px solid #9B1B1F;
+                border-bottom:1px solid #9B1B1F; font-family:"KaiTi","STKaiti",serif; font-size:11pt; margin-top:9mm; }
+.cover .foot{ border:0; text-align:center; font-family:"KaiTi","STKaiti",serif; font-size:12pt; color:#555; bottom:22mm; }
+h2{ font-family:"SimHei","黑体",sans-serif; font-size:16pt; color:#000; border:0; padding:0;
+    margin:8mm 0 4mm; letter-spacing:0; }
+h3{ font-family:"KaiTi","STKaiti",serif; font-size:14.5pt; color:#000; border:0; padding:0;
+    margin:5mm 0 2.5mm; font-weight:700; }
+p{ text-indent:2em; }
+li p, blockquote p, td p, .cover p{ text-indent:0; }
+ol{ padding-left:10mm; }
+ul{ padding-left:8mm; }
+strong{ color:#000; }
+blockquote{ background:none; border:0; border-top:1px solid #9B1B1F; border-bottom:1px solid #9B1B1F;
+            border-radius:0; padding:3.5mm 1mm; font-family:"KaiTi","STKaiti",serif; font-size:13pt; line-height:1.9; }
+blockquote strong{ color:#9B1B1F; }
+table{ font-family:"SimSun","STSong",serif; }
+th{ background:#fff !important; color:#000; border:1px solid #000; text-align:center;
+    font-family:"SimHei"; font-weight:400; }
+td{ border:1px solid #000; }
+tbody tr:nth-child(even) td{ background:none; }
+.toc h2.tt{ text-align:center; color:#000; font-family:"SimHei"; font-size:18pt; margin-bottom:10mm; }
+.toc li{ border-bottom:0; font-size:13.5pt; padding:2.2mm 0; }
+.toc li.l2{ font-size:12.5pt; padding:1.4mm 0 1.4mm 9mm; color:#222; border:0; }
+.toc .pg{ color:#000; font-weight:400; }
+/* 黑体、楷体、仿宋都没有粗体字形，加粗会被 Chrome 合成成 Type3 矢量字（小字号发虚、自检读不出标题）。
+   一律用常规字重；正文强调改用黑体——这本来就是公文的做法。封面大标题保留加粗（大字号无碍）。 */
+h2, h3, .toc h2.tt, th, strong, b, .cover .sign b{ font-weight:400; }
+strong, b, .cover .sign b{ font-family:"SimHei","黑体",sans-serif; }
+"""
+
+_CSS_STEEL = r"""
+.cover .band{ background:none !important; height:auto !important; padding:30mm 24mm 0 !important; color:#1F2D3D; }
+.cover .kicker{ color:#2F4A68; opacity:1; font-size:9.5pt; letter-spacing:.5px; font-weight:600; margin-bottom:34mm; }
+.cover h1.t{ color:#1F2D3D !important; font-size:27pt !important; line-height:1.42 !important; letter-spacing:0; }
+.cover .sub{ color:#2F4A68; opacity:1; font-size:12.5pt; margin-top:6mm; }
+.cover .body{ padding:16mm 24mm 0; }
+.cover .rule{ background:#2F4A68; width:100%; height:1.4px; margin-bottom:2mm; }
+.cover dl{ display:grid; grid-template-columns:30mm 1fr; font-size:10pt; line-height:1.5; }
+.cover dt, .cover dd{ float:none; width:auto; margin:0; padding:2.6mm 0; border-bottom:1px solid #E1E6EC; }
+.cover dt{ color:#7A8897; }
+.cover dd{ color:#1F2D3D; }
+.cover .notice{ background:#F2F5F8; border-left-color:#2F4A68; }
+.cover .sign{ left:24mm; right:24mm; color:#1F2D3D; }
+.cover .foot{ border-top:0; color:#8A96A3; }
+h2{ color:#1F2D3D; border-bottom:1.4px solid #2F4A68; }
+h3{ color:#2F4A68; border-left-color:#2F4A68; }
+strong{ color:#1F2D3D; }
+th{ background:#E8EDF2 !important; color:#1F2D3D; border:1px solid #C9D2DC; font-weight:700; }
+td{ border:1px solid #D5DCE4; }
+tbody tr:nth-child(even) td{ background:#F7F9FB; }
+blockquote{ background:#F2F5F8; border-left:4px solid #2F4A68; }
+blockquote strong{ color:#2F4A68; }
+.toc li{ border-bottom:1px solid #E6EAEF; }
+.toc li.l2{ border-bottom:1px solid #F0F3F6; }
+.toc .pg{ color:#2F4A68; }
+"""
+
+_CSS_GRAYBL = r"""
+body{ font-family:"Times New Roman","SimSun","宋体",serif; }
+.cover{ text-align:center; }
+.cover .band{ background:none !important; height:auto !important; padding:56mm 26mm 0 !important; color:#1B2A3A; }
+.cover .kicker{ color:#6B7A8A; opacity:1; font-size:11pt; letter-spacing:4px; margin-bottom:12mm; font-family:"SimHei"; }
+.cover h1.t{ color:#1B2A3A !important; font-family:"SimHei" !important; font-size:26pt !important;
+             line-height:1.6 !important; letter-spacing:2px; }
+.cover .sub{ color:#3A4F66; opacity:1; font-size:12pt; margin-top:5mm; }
+.cover .body{ padding:14mm 40mm 0; }
+.cover .rule{ margin:0 auto 12mm; width:70mm; height:0; background:none;
+              border-top:1px solid #1B2A3A; border-bottom:1px solid #1B2A3A; padding-top:1mm; }
+.cover dl{ display:inline-block; text-align:left; font-size:11pt; line-height:2.1; }
+.cover dt{ color:#6B7A8A; }
+.cover .notice{ text-align:left; background:#F3F5F8; border-left-color:#1B2A3A; }
+.cover dl{ align-self:center; }
+.cover .sign{ color:#1B2A3A; }
+.cover.has-sign .sign{ margin-left:-10mm; margin-right:-10mm; margin-bottom:40mm; }
+.cover .foot{ border:0; text-align:center; color:#1B2A3A; font-family:"SimHei"; font-size:12pt; bottom:20mm; }
+h2{ font-family:"SimHei"; color:#1B2A3A; border-bottom:3px double #1B2A3A; letter-spacing:0; }
+h3{ font-family:"SimHei"; color:#1B2A3A; border-left:0; padding-left:0; }
+strong{ color:#1B2A3A; }
+th{ background:#DCE3EA !important; color:#1B2A3A; border:0.8px solid #9AA8B6; text-align:center;
+    font-family:"SimHei"; font-weight:400; }
+td{ border:0.8px solid #B5C0CB; }
+tbody tr:nth-child(even) td{ background:none; }
+blockquote{ background:#F3F5F8; border-left:3px solid #1B2A3A; font-family:"KaiTi","STKaiti",serif; font-size:10.8pt; }
+blockquote strong{ color:#1B2A3A; }
+.toc h2.tt{ text-align:center; color:#1B2A3A; font-family:"SimHei"; border:0; }
+.toc li{ border-bottom:1px dotted #9AA8B6; }
+.toc li.l2{ border-bottom:1px dotted #C8D0D8; }
+.toc .pg{ color:#1B2A3A; font-weight:400; }
+/* 黑体、宋体没有粗体字形：用常规字重，强调改用黑体，避免合成加粗（Type3） */
+.cover h1.t{ font-weight:400 !important; }
+h2, h3, .toc h2.tt, th, strong, b, .cover .sign b{ font-weight:400; }
+strong, b, .cover .sign b{ font-family:"SimHei","黑体",sans-serif; }
+"""
+
+_CSS_CONSULT = r"""
+.cover .band{ background:#fff !important; color:#0A2533; height:150mm !important; padding:0 22mm !important; }
+.cover .kicker{ padding-top:56mm; color:#0B8A8F; opacity:1; font-size:9.5pt; letter-spacing:3px; font-weight:600; }
+.cover h1.t{ color:#0A2533 !important; font-size:29pt !important; line-height:1.32 !important; letter-spacing:0; }
+.cover .sub{ color:#5b6b75; opacity:1; font-size:12pt; margin-top:6mm; }
+.cover .body{ padding:0 22mm; }
+.cover .rule{ background:#0B8A8F; width:22mm; height:4px; margin-bottom:10mm; }
+.cover dl{ font-size:9.5pt; line-height:2.0; }
+.cover dt{ color:#8a979f; }
+.cover .notice{ background:#EEF6F7; border-left-color:#0B8A8F; }
+.cover .notice strong{ color:#0B5563; }
+.cover .foot{ border-top:1px solid #d9e1e5; color:#8a979f; }
+h2{ font-size:21pt; color:#0A2533; border-bottom:0; padding-bottom:0; margin-bottom:7mm; letter-spacing:0; }
+h2::before{ content:""; display:block; width:16mm; height:3.5px; background:#0B8A8F; margin-bottom:5mm; }
+h3{ border-left:0; padding-left:0; color:#0B5563; font-size:12.5pt; border-bottom:1px solid #DCE4E8; padding-bottom:1.5mm; }
+strong{ color:#0A2533; }
+table{ border-top:2px solid #0A2533; border-bottom:2px solid #0A2533; }
+th{ background:#fff !important; color:#0A2533; border:0; border-bottom:1.2px solid #0A2533; font-weight:700; }
+td{ border:0; border-bottom:1px solid #E3E8EB; }
+tbody tr:last-child td{ border-bottom:0; }
+tbody tr:nth-child(even) td{ background:none; }
+blockquote{ background:#EEF6F7; border-left:4px solid #0B8A8F; font-size:10pt; padding:5mm 6mm; }
+blockquote strong{ color:#0B5563; }
+.toc li{ border-bottom:1px solid #E6ECEF; font-size:11pt; padding:3.2mm 0; }
+.toc li.l2{ border-bottom:1px solid #F0F3F5; }
+.toc .pg{ color:#0B8A8F; }
+"""
+
+_CSS_INTL = r"""
+.cover{ background:#14264A; }
+.cover .band{ background:none !important; height:auto !important; padding:60mm 24mm 0 !important; text-align:center; }
+.cover .kicker{ color:#D4B764; opacity:1; font-family:Georgia,serif; letter-spacing:4px; font-size:10pt; margin-bottom:12mm; }
+.cover h1.t{ font-family:Georgia,"SimHei",serif !important; font-size:26pt !important; line-height:1.55 !important; }
+.cover .sub{ font-family:Georgia,serif; font-style:italic; color:#E9E2CC; opacity:1; margin-top:8mm; font-size:12.5pt; }
+.cover .body{ padding:18mm 38mm 0; color:#E9E2CC; }
+.cover .rule{ background:#B8962E; width:40mm; height:1.5px; margin:0 auto 14mm; }
+.cover dl{ font-size:9.8pt; line-height:2.1; }
+.cover dt{ color:#C9A94A; }
+.cover .notice{ background:rgba(255,255,255,.06); border-left-color:#B8962E; color:#E9E2CC; }
+.cover .notice strong{ color:#fff; }
+.cover .sign{ color:#E9E2CC; }
+.cover .foot{ color:#B9B2A0; border-top:1px solid #B8962E; text-align:center; }
+h2{ font-family:Georgia,"SimHei",serif; color:#14264A; border-bottom:1.5px solid #B8962E; }
+h3{ font-family:Georgia,"SimHei",serif; border-left:3px solid #B8962E; color:#14264A; }
+th{ background:#14264A !important; border-color:#14264A; border-bottom:2px solid #B8962E; }
+td{ border-color:#DDD6C3; }
+tbody tr:nth-child(even) td{ background:#F8F5EC; }
+blockquote{ background:#F8F5EC; border-left:4px solid #B8962E; }
+blockquote strong{ color:#14264A; }
+.toc h2.tt{ font-family:Georgia,"SimHei",serif; }
+.toc li{ border-bottom:1px solid #EAE3CF; }
+.toc li.l2{ border-bottom:1px solid #F2EDE0; }
+.toc .pg{ color:#B8962E; font-family:Georgia,serif; }
+/* 所有加粗处：英文用 Georgia 粗体，中文用自带粗体的微软雅黑（宋体/黑体加粗会被合成成 Type3） */
+.cover h1.t{ font-family:Georgia,"Microsoft YaHei",serif !important; }
+h2, h3, h4, .toc h2.tt, th, strong, b, .cover .sign b{ font-family:Georgia,"Microsoft YaHei",sans-serif; }
+"""
+
+_CSS_BRIEF = r"""
+.cover{ background:#F6F5F1; }
+.cover .band{ background:none !important; height:auto !important; position:absolute; left:0; right:0; top:112mm;
+              padding:0 24mm !important; color:#10261F; }
+.cover .kicker{ color:#C8553D; opacity:1; font-weight:700; letter-spacing:2px; font-size:10pt; margin-bottom:8mm; }
+.cover h1.t{ color:#10261F !important; font-size:28pt !important; line-height:1.3 !important; letter-spacing:0; }
+.cover .sub{ color:#1F4D3F; opacity:1; font-size:13pt; margin-top:7mm; }
+.cover .body{ position:absolute; left:0; right:0; bottom:40mm; padding:0 24mm; }
+.cover .rule{ background:#10261F; width:100%; height:1px; margin-bottom:6mm; }
+.cover dl{ display:grid; grid-template-rows:auto auto; grid-auto-flow:column; grid-auto-columns:1fr;
+           column-gap:6mm; row-gap:1.5mm; font-size:9.5pt; line-height:1.45; }
+.cover dt, .cover dd{ float:none; width:auto; margin:0; }
+.cover dt{ color:#7d8b85; font-size:8.5pt; }
+.cover dd{ color:#10261F; font-weight:600; }
+.cover .notice{ background:none; border-left:3px solid #C8553D; margin-top:7mm; padding:1mm 0 1mm 5mm; }
+.cover .sign{ color:#10261F; }
+.cover.has-sign .sign{ margin-top:8mm; margin-bottom:0; padding-top:0; }
+.cover .foot{ border:0; color:#7d8b85; top:22mm; bottom:auto; padding:0; }
+h2{ font-size:24pt; font-weight:700; color:#10261F; border-bottom:0; padding:0; margin:0 0 8mm; letter-spacing:0; }
+h2::after{ content:""; display:block; width:100%; height:1px; background:#10261F; margin-top:4mm; }
+.toc h2.tt::after{ display:none; }
+h3{ border-left:0; padding-left:0; color:#C8553D; font-size:11.5pt; letter-spacing:1px; margin-top:9mm; }
+blockquote{ background:#10261F; color:#F6F5F1; border-left:0; padding:6mm 7mm; font-size:11pt; line-height:1.75; border-radius:0; }
+blockquote strong{ color:#F2B9A6; }
+th{ background:none !important; color:#10261F; border:0; border-bottom:2px solid #10261F; font-weight:700; }
+td{ border:0; border-bottom:1px solid #DAD7CE; }
+tbody tr:nth-child(even) td{ background:none; }
+.toc li{ border-bottom:1px solid #DAD7CE; font-size:12pt; }
+.toc li.l2{ border-bottom:1px solid #ECEAE3; }
+.toc .pg{ color:#C8553D; }
+"""
+
+# 键 = 样式英文名；aliases = 也认的叫法（中文名等）
+STYLES = {
+    "default": dict(name="默认", aliases=["默认", "navy"],
+                    desc="深蓝色块封面，通用正式文档（默认）",
+                    cfg={}, css=""),
+    "gov":     dict(name="公文汇报", aliases=["公文", "公文汇报"],
+                    desc="仿宋正文、黑体/楷体标题、红色双线封面，章节连排",
+                    cfg=dict(theme="gov", break_before_h2=False, font_size=13.5, line_height=1.85,
+                             table_font_size=10.5, meta_label_width="28mm",
+                             stamp_font="simfang.ttf", toc_title="目　　录"),
+                    css=_CSS_GOV),
+    "steel":   dict(name="工程文件·钢蓝", aliases=["钢蓝", "工程文件"],
+                    desc="左对齐封面、细线信息栏、底部签字栏，现代正式",
+                    cfg=dict(theme="steel", signoff=True),
+                    css=_CSS_STEEL),
+    "graybl":  dict(name="技术文件·灰蓝", aliases=["灰蓝", "技术文件"],
+                    desc="居中封面、宋体正文、双线章标题、底部签字栏，稳重正式",
+                    cfg=dict(theme="graybl", signoff=True, font_size=10.5, line_height=1.8,
+                             table_font_size=9.5, stamp_font="simhei.ttf"),
+                    css=_CSS_GRAYBL),
+    "consult": dict(name="咨询报告", aliases=["咨询", "咨询报告"],
+                    desc="大留白、三线表、核心结论框，客户汇报与方案比选",
+                    cfg=dict(theme="consult"),
+                    css=_CSS_CONSULT),
+    "intl":    dict(name="国际双语", aliases=["国际", "国际双语", "双语"],
+                    desc="藏青整页封面配金线、衬线英文，外方客户与双语文件",
+                    cfg=dict(theme="intl", font_body='"Cambria","SimSun",serif',
+                             font_head='"Georgia","Microsoft YaHei",serif', toc_title="目　录　Contents"),
+                    css=_CSS_INTL),
+    "brief":   dict(name="高管简报", aliases=["简报", "高管简报"],
+                    desc="暖灰封面、大标题、深底结论框，领导简报与决策汇报",
+                    cfg=dict(theme="brief"),
+                    css=_CSS_BRIEF),
+}
+
+
+def resolve_style(name) -> str:
+    n = str(name or "default").strip()
+    if n.lower() in STYLES:
+        return n.lower()
+    for key, st in STYLES.items():
+        if n in st["aliases"]:
+            return key
+    sys.exit("未知样式：%s\n可选样式：\n%s" % (n, style_list()))
+
+
+def style_list() -> str:
+    rows = []
+    for key, st in STYLES.items():
+        rows.append("  %-8s %-14s %s" % (key, st["name"], st["desc"]))
+    return "\n".join(rows)
+
+
+def apply_style(cfg: dict) -> dict:
+    """样式默认值垫底，用户配置覆盖在上；extra_css 按「样式在前、用户在后」拼接。"""
+    key = resolve_style(cfg.get("style"))
+    st = STYLES[key]
+    merged = dict(st["cfg"])
+    merged.update(cfg)
+    merged["extra_css"] = st["css"] + "\n" + str(cfg.get("extra_css") or "")
+    merged["style"] = key
+    return merged
 
 
 # ══════════════════════════════════════════════════════════════════
@@ -113,9 +389,23 @@ def find_browser(override: str | None = None) -> str:
     sys.exit("未找到 Chrome / Edge。请安装其一，或用 --browser 指定可执行文件路径。")
 
 
+FONT_DIRS = [
+    r"C:\Windows\Fonts",
+    os.path.expanduser(r"~\AppData\Local\Microsoft\Windows\Fonts"),
+    "/System/Library/Fonts", "/Library/Fonts", os.path.expanduser("~/Library/Fonts"),
+    "/usr/share/fonts", "/usr/local/share/fonts", os.path.expanduser("~/.fonts"),
+]
+
+
 def find_cjk_font(override: str | None = None) -> str | None:
     if override and os.path.exists(override):
         return override
+    # 只写了文件名（如 simfang.ttf）时，到系统字体目录里找
+    if override and not os.path.dirname(override):
+        for d in FONT_DIRS:
+            p = os.path.join(d, override)
+            if os.path.exists(p):
+                return p
     for p in CJK_FONTS:
         if os.path.exists(p):
             return p
@@ -252,8 +542,10 @@ body{
 .tk{ color:transparent; font-size:1px; letter-spacing:0; }
 
 /* ─────────── 封面 ─────────── */
+/* overflow:hidden 必须有：封面内容一旦超过一页高，Chrome 会把「整份文档」等比缩小来塞下。
+   宁可截断封面、由自检报错，也不能让正文字号被悄悄缩小 */
 .cover{ height:%(page_h)s; box-sizing:border-box; page-break-after:always;
-        position:relative; background:#fff; }
+        position:relative; background:#fff; overflow:hidden; }
 .cover .band{ height:%(band_h)s; background:%(main)s; color:#fff;
               padding:24mm 20mm 0 20mm; box-sizing:border-box; }
 .cover .kicker{ font-size:10pt; letter-spacing:3px; opacity:.72; margin-bottom:7mm; }
@@ -274,6 +566,16 @@ body{
 .cover .notice p:last-child{ margin-bottom:0; }
 .cover .foot{ position:absolute; bottom:18mm; left:20mm; right:20mm;
               font-size:8.5pt; color:#8a8a8a; border-top:1px solid #ddd; padding-top:4mm; }
+/* 签字栏（signoff）：封面底部一排签名线。
+   有签字栏时封面改为纵向弹性布局——内容少时签字栏贴底，内容多时顺延，永远不会压住上面的内容 */
+.cover .sign{ display:grid; column-gap:9mm; text-align:left; color:#1a1a1a; }
+.cover.has-sign{ display:flex; flex-direction:column; }
+.cover.has-sign > *{ flex-shrink:0; }
+.cover.has-sign .body{ flex:1 0 auto; display:flex; flex-direction:column; }
+.cover.has-sign .sign{ margin-top:auto; padding-top:6mm; margin-bottom:30mm; }
+.cover .sign b{ display:block; font-weight:600; font-size:10pt; }
+.cover .sign i{ display:block; height:13mm; border-bottom:1px solid currentColor; margin-bottom:1.6mm; }
+.cover .sign span{ font-size:9pt; opacity:.75; }
 
 /* ─────────── 目录 ─────────── */
 .toc{ page-break-after:always; }
@@ -344,7 +646,7 @@ h2 + p, h2 + blockquote, h2 + table{ page-break-before:avoid; }
 """
 
 COVER_TPL = """
-<div class="cover">
+<div class="cover%(cover_cls)s">
   <div class="band">
     %(kicker)s
     <h1 class="t">%(title)s</h1>
@@ -354,10 +656,22 @@ COVER_TPL = """
     <div class="rule"></div>
     %(meta)s
     %(notice)s
+    %(sign)s
   </div>
   %(foot)s
 </div>
 """
+
+SIGN_DEFAULT = ["编　制", "审　核", "批　准"]
+
+
+def build_sign(val) -> str:
+    """signoff: true → 编制/审核/批准；列表 → 自定义栏目；false/缺省 → 不加"""
+    if not val:
+        return ""
+    labels = SIGN_DEFAULT if val is True else [str(x) for x in val]
+    cells = "".join('<div><b>%s</b><i></i><span>日期：</span></div>' % esc(x) for x in labels)
+    return '<div class="sign" style="grid-template-columns:repeat(%d,1fr)">%s</div>' % (len(labels), cells)
 
 
 def esc(s) -> str:
@@ -384,12 +698,15 @@ def build_cover(cfg: dict, title: str) -> str:
         notice_html = '<div class="notice">%s</div>' % markdown.markdown(
             str(notice), extensions=["nl2br"])
 
+    sign_html = build_sign(cfg.get("signoff"))
     return COVER_TPL % dict(
+        cover_cls=" has-sign" if sign_html else "",
         kicker='<div class="kicker">%s</div>' % esc(kicker) if kicker else "",
         title=str(title).replace("\n", "<br>"),
         subtitle='<div class="sub">%s</div>' % esc(sub) if sub else "",
         meta=meta_html,
         notice=notice_html,
+        sign=sign_html,
         foot='<div class="foot">%s</div>' % esc(foot) if foot else "",
     )
 
@@ -654,10 +971,33 @@ def selfcheck(pdf_path: str, heads, cfg, quiet=False):
       2) 隐形 token 与占位符残留 —— 肉眼看不见，复制/搜索会露馅
       3) 目录印的页码 vs 标题实际所在页 —— 多遍收敛失败时会不一致
       4) 页面溢出（内容超出纸张可打印区）
+      5) 封面内容被截断（封面超过一页高时，超出部分会被裁掉）
     """
     err, warn = [], []
     d = pymupdf.open(pdf_path)
     txts = [p.get_text() for p in d]
+
+    # 5) 封面完整性：meta 的值、notice 最后一行、签字栏栏目都应出现在第 1 页
+    if cfg.get("cover", True) and txts:
+        def norm(s):
+            s = re.sub(r"\[([^\]]*)\]\([^)]*\)", r"\1", str(s))   # 链接只留文字
+            return re.sub(r"[\s*`_]", "", s)
+        page1 = norm(txts[0])
+        expect = []
+        meta = cfg.get("meta") or {}
+        if isinstance(meta, dict):
+            expect += [v for v in meta.values() if str(v).strip()]
+        notice_lines = [ln for ln in str(cfg.get("notice") or "").splitlines()
+                        if ln.strip() and not ln.strip().startswith("<")]
+        if notice_lines:
+            expect.append(notice_lines[-1])
+        so = cfg.get("signoff")
+        if so:
+            expect += SIGN_DEFAULT if so is True else list(so)
+        lost = [str(x) for x in expect if norm(x) and norm(x) not in page1]
+        if lost:
+            err.append("封面内容超出一页、末尾被截掉（缺：%s）——精简 meta / notice，或去掉 signoff"
+                       % "、".join(x[:14] for x in lost[:3]))
 
     # 1) 空白页 / 稀疏页
     has_cover = bool(cfg.get("cover", True))
@@ -692,10 +1032,11 @@ def selfcheck(pdf_path: str, heads, cfg, quiet=False):
         for i, p in enumerate(d):
             for blk in p.get_text("dict")["blocks"]:
                 for ln in blk.get("lines", []):
-                    for sp in ln["spans"]:
-                        t = sp["text"].strip()
-                        if sp["size"] > 15 and t and t not in real:
-                            real[t] = i + 1
+                    # 按整行拼接再比对：同一行可能被拆成多个 span（如合成加粗时逐字成段）
+                    sps = [sp for sp in ln["spans"] if sp["size"] > 15]
+                    t = "".join(sp["text"] for sp in sps).strip()
+                    if t and t not in real:
+                        real[t] = i + 1
         for lv, txt, hid, tok in heads:
             if lv != 1:
                 continue
@@ -732,6 +1073,9 @@ def convert(src, out=None, overrides=None, preview=None, keep=False, quiet=False
     raw = io.open(src, encoding="utf-8-sig").read()
     cfg, body = split_front_matter(raw)
     cfg.update({k: v for k, v in overrides.items() if v is not None})
+    cfg = apply_style(cfg)
+    if not quiet and cfg["style"] != "default":
+        print("  样式：%s（%s）" % (STYLES[cfg["style"]]["name"], cfg["style"]))
 
     h1, body = drop_leading_h1(body)
     title = cfg.get("title") or h1 or os.path.splitext(os.path.basename(src))[0]
@@ -797,8 +1141,13 @@ def main():
         description="Markdown → 排版 PDF（中文技术文档）",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog="配置写在 md 顶部的 YAML front-matter 里，命令行参数优先级更高。详见 README.md")
-    ap.add_argument("src", help="源 Markdown 文件")
+    ap.add_argument("src", nargs="?", help="源 Markdown 文件")
     ap.add_argument("-o", "--out", help="输出 PDF 路径（默认与源同名）")
+    ap.add_argument("-s", "--style",
+                    help="内置样式，英文名或中文名均可（如 gov / 公文）。--list-styles 查看全部")
+    ap.add_argument("--list-styles", action="store_true", help="列出全部内置样式后退出")
+    ap.add_argument("--signoff", action="store_const", const=True, default=None,
+                    help="封面加「编制 / 审核 / 批准」签字栏")
     ap.add_argument("--theme", choices=sorted(THEMES), help="配色主题")
     ap.add_argument("--paper", choices=sorted(PAPERS), help="纸张")
     ap.add_argument("--landscape", action="store_true", default=None, help="横向")
@@ -816,10 +1165,17 @@ def main():
     ap.add_argument("-q", "--quiet", action="store_true")
     a = ap.parse_args()
 
+    if a.list_styles:
+        print("内置样式（-s 名称，或 front-matter 里写 style: 名称）：\n" + style_list())
+        return
+    if not a.src:
+        ap.error("缺少源 Markdown 文件")
     if not os.path.exists(a.src):
         sys.exit("源文件不存在：%s" % a.src)
+    if a.style:
+        resolve_style(a.style)  # 名称写错时立即报错并列出可选项
 
-    ov = dict(theme=a.theme, paper=a.paper, landscape=a.landscape,
+    ov = dict(style=a.style, signoff=a.signoff, theme=a.theme, paper=a.paper, landscape=a.landscape,
               toc_depth=a.toc_depth, cover=a.cover, toc=a.toc,
               break_before_h2=a.break_before_h2, font_size=a.font_size,
               browser=a.browser)
