@@ -56,14 +56,26 @@ md2pdf 走第四条：**用你电脑上已有的 Chrome 当排版引擎**（Blin
 
 ## 效果
 
-下面所有图都是 [`examples/口语表达库_速查表册.md`](examples/口语表达库_速查表册.md) 直接跑出来的（一份 17 页的美式英语口语速查表册），你 clone 下来能一模一样复现。
+截图来自两份文档：
+
+- **封面、目录、正文**：作者自己的一份 **360 页**美式英语口语学习资料，用默认样式直接生成。它本身不在仓库里，放在这里是为了展示长文档的真实效果
+- **表格**：[`examples/口语表达库_速查表册.md`](examples/口语表达库_速查表册.md)（17 页），clone 下来能一模一样复现
 
 ### 封面与目录
 
 | | |
 |---|---|
 | ![封面](assets/shots/01-cover.png) | ![目录](assets/shots/02-toc.png) |
-| **封面**：色块 + 元信息表 + 提示块，全部由 front-matter 配置 | **目录**：两级，页码是多遍渲染**回填的真实页码**，不是估的 |
+| **封面**：色块 + 元信息表 + 提示块，全部由 front-matter 配置 | **目录**：页码是多遍渲染**回填的真实页码**，360 页也一样准 |
+
+### 正文
+
+| | |
+|---|---|
+| ![章节首页](assets/shots/03-chapter.png) | ![本轮总结](assets/shots/05-summary.png) |
+| 章节自动分页，行内代码、嵌套列表 | 编号列表 + 行内代码；右上角跑动页眉显示当前所在章节 |
+| ![长篇故事](assets/shots/06-story.png) | ![多人对话](assets/shots/08-dialogue.png) |
+| `>` 引用块渲染成提示框，适合放长段落 | 同一页多个提示框，对话、标注混排 |
 
 ### 长表格跨页，表头自动重复
 
@@ -71,14 +83,10 @@ md2pdf 走第四条：**用你电脑上已有的 Chrome 当排版引擎**（Blin
 
 这是做正式文件时最省事的一个特性——**不用手工拆表，也不用在 Markdown 里重复写表头。**
 
-### 其他版式
-
 | | |
 |---|---|
 | ![宽表](assets/shots/04-table-wide.png) | ![表格+代码块](assets/shots/07-table-code.png) |
 | 五列宽表 + 表下提示框，斑马纹与深色表头 | 表格 / 代码块 / 提示框混排 |
-| ![章节首页](assets/shots/03-entries.png) | ![表格+提示框](assets/shots/05-table-callout.png) |
-| 章节首页自动分页，行内代码、嵌套列表 | 跑动页眉：右上角自动显示当前所在部分 |
 
 ---
 
@@ -124,7 +132,7 @@ Linux:    /usr/bin/google-chrome  /usr/bin/chromium  /usr/bin/chromium-browser
 
 ### 2.2 想要正式封面：加 front-matter
 
-在 `.md` 最开头（**必须是第一行**）加一段 YAML。下面就是示例文档自己用的 front-matter（上面那张封面图就是它生成的）：
+在 `.md` 最开头（**必须是第一行**）加一段 YAML。下面是 `examples/` 里示例文档自己用的 front-matter：
 
 ```yaml
 ---
@@ -192,7 +200,7 @@ footer_left: 960 chunks · 速查表册
 python md2pdf.py examples/口语表达库_速查表册.md
 ```
 
-输出应该和 `examples/口语表达库_速查表册.pdf` 一致。README 上面那些效果图就是它的页面。
+输出应该和 `examples/口语表达库_速查表册.pdf` 一致。README 上面的表格效果图就是它的页面。
 
 ---
 
