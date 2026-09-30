@@ -291,20 +291,20 @@ tbody tr:nth-child(even) td{ background:none; }
 STYLES = {
     "default": dict(name="默认", aliases=["默认", "navy"],
                     desc="深蓝色块封面，通用正式文档（默认）",
-                    cfg={}, css=""),
+                    cfg=dict(toc_leader=True), css=""),
     "gov":     dict(name="公文汇报", aliases=["公文", "公文汇报"],
                     desc="仿宋正文、黑体/楷体标题、红色双线封面，章节连排",
                     cfg=dict(theme="gov", break_before_h2=False, font_size=13.5, line_height=1.85,
                              table_font_size=10.5, meta_label_width="28mm",
-                             stamp_font="simfang.ttf", toc_title="目　　录"),
+                             stamp_font="simfang.ttf", toc_title="目　　录", toc_leader=True),
                     css=_CSS_GOV),
     "steel":   dict(name="工程文件·钢蓝", aliases=["钢蓝", "工程文件"],
                     desc="左对齐封面、细线信息栏、底部签字栏，现代正式",
-                    cfg=dict(theme="steel", signoff=True),
+                    cfg=dict(theme="steel", signoff=True, toc_leader=True),
                     css=_CSS_STEEL),
     "graybl":  dict(name="技术文件·灰蓝", aliases=["灰蓝", "技术文件"],
                     desc="居中封面、宋体正文、双线章标题、底部签字栏，稳重正式",
-                    cfg=dict(theme="graybl", signoff=True, font_size=10.5, line_height=1.8,
+                    cfg=dict(theme="graybl", signoff=True, toc_leader=True, font_size=10.5, line_height=1.8,
                              table_font_size=9.5, stamp_font="simhei.ttf"),
                     css=_CSS_GRAYBL),
     "consult": dict(name="咨询报告", aliases=["咨询", "咨询报告"],
@@ -587,6 +587,13 @@ body{
 .toc li a{ color:#1a1a1a; text-decoration:none; }
 .toc li.l2 a{ color:#444; }
 .toc .pg{ float:right; color:%(main)s; font-weight:700; }
+/* 引导点（toc_leader: true）：这里只负责排版，圆点在 postprocess() 里用 PyMuPDF 画成矢量。
+   不用 CSS 背景画点——Chrome 会把平铺背景栅格化：半透明时每条几十 KB，不透明时变成粗糙方块。
+   也不用「…」字符——字符会进文本层，复制/搜索时带出一串点。
+   页码绝对定位在最后一行右端，所以标题折成几行都行，点总是从末字后开始连到页码 */
+.toc ul li.lead{ border-bottom:0; }
+.toc li.lead .row{ display:block; position:relative; padding-right:11mm; }
+.toc li.lead .pg{ float:none; position:absolute; right:0; bottom:0; }
 
 /* ─────────── 标题 ─────────── */
 h1{ font-family:%(font_head)s; font-size:20pt; color:%(main)s; }
@@ -721,11 +728,19 @@ def build_toc(heads, pages, cfg) -> str:
     if not cfg.get("toc", True) or not heads:
         return ""
     label = cfg.get("toc_title", "目　录")
+    lead = bool(cfg.get("toc_leader"))
     out = ['<div class="toc"><h2 class="tt">%s</h2><ul>' % esc(label)]
-    for lv, txt, hid, tok in heads:
-        pg = ""
-        if pages and tok in pages:
-            pg = '<span class="pg">%d</span>' % pages[tok]
+    for k, (lv, txt, hid, tok) in enumerate(heads):
+        num = pages.get(tok) if pages else None
+        if lead:
+            # 引导点版：标题末尾埋 @@LS 标记、页码前埋 @@LE 标记（与标题定位 token 同一机制），
+            # 后处理时在两标记之间用 PyMuPDF 画矢量圆点，再把标记抹掉。
+            # 页码位即使尚未回填也先占位，保证每一遍渲染的换行位置一致，页码表才能收敛
+            out.append('<li class="l%d lead"><span class="row"><a href="#%s">%s</a>'
+                       '<span class="tk">@@LS%03d@@</span><span class="pg"><span class="tk">@@LE%03d@@</span>%s</span>'
+                       '</span></li>' % (lv, hid, esc(txt), k, k, num if num else ""))
+            continue
+        pg = '<span class="pg">%d</span>' % num if num else ""
         out.append('<li class="l%d"><a href="#%s">%s</a>%s</li>' % (lv, hid, esc(txt), pg))
     out.append("</ul></div>")
     return "".join(out)
@@ -921,13 +936,44 @@ def postprocess(pdf_in: str, out: str, heads, pages, cfg, title: str, font_file)
         "creator": "md2pdf",
     })
 
+    # 目录引导点：在 @@LSnnn@@（标题末字后）与 @@LEnnn@@（页码前）之间画矢量圆点
+    lead_toks = []
+    if cfg.get("toc_leader") and cfg.get("toc", True) and heads:
+        for k in range(len(heads)):
+            lead_toks += ["@@LS%03d@@" % k, "@@LE%03d@@" % k]
+        # 每条引导点只画一条线：线段长 0、间隔 STEP 的虚线 + 圆形线帽 = 一排直径 DOT 的圆点
+        GAP, STEP, DOT = 3.2, 3.0, 0.85        # 距文字/页码的留白、点距、点直径（pt）
+        for page in doc:
+            if "@@LS" not in page.get_text():
+                continue
+            for k in range(len(heads)):
+                ls = page.search_for("@@LS%03d@@" % k)
+                le = page.search_for("@@LE%03d@@" % k)
+                if not ls or not le:
+                    continue
+                a, b = ls[0], le[0]
+                y = b.y1 - 1.3                   # 与页码同一基线，略高于基线，像句点的位置
+                x, x_end = a.x0 + GAP, b.x0 - GAP
+                n = int((x_end - x) // STEP)
+                if n < 1:
+                    continue
+                x = x_end - n * STEP             # 右端对齐页码，左端余量留给文字一侧
+                sh = page.new_shape()
+                sh.draw_line(pymupdf.Point(x, y), pymupdf.Point(x_end, y))
+                sh.finish(color=(0.55, 0.57, 0.60), width=DOT, lineCap=1,
+                          dashes="[0 %s] 0" % STEP)
+                sh.commit()
+
     # 抹除定位用的隐形 token。它们视觉不可见（transparent / 1px），
     # 但留在文本层：复制、Ctrl+F、文本提取、屏幕朗读都会带出来。
     # 用 redact 而不是重新渲染，保证版面零位移。
     n_red = 0
     for page in doc:
         hit = 0
-        for _lv, _txt, _hid, tok in heads:
+        page_txt = page.get_text()
+        for tok in [h[3] for h in heads] + lead_toks:
+            if tok not in page_txt:
+                continue
             for rect in page.search_for(tok):
                 page.add_redact_annot(rect)
                 hit += 1
@@ -958,7 +1004,7 @@ def postprocess(pdf_in: str, out: str, heads, pages, cfg, title: str, font_file)
 #  ——这些坑都是真实返工出来的，机器能查的就别靠眼睛
 # ══════════════════════════════════════════════════════════════════
 # 机器残渣：出现即是 bug，报错
-RESIDUE = ["@@H", "{{", "}}", "[object Object]"]
+RESIDUE = ["@@H", "@@L", "{{", "}}", "[object Object]"]
 # 人写的占位符：可能是正文在讨论它们，只提示不报错
 DRAFT_MARKS = ["TODO", "XXX", "???", "待补", "待填", "undefined", "NaN"]
 
@@ -1148,6 +1194,8 @@ def main():
     ap.add_argument("--list-styles", action="store_true", help="列出全部内置样式后退出")
     ap.add_argument("--signoff", action="store_const", const=True, default=None,
                     help="封面加「编制 / 审核 / 批准」签字栏")
+    ap.add_argument("--toc-leader", action="store_const", const=True, default=None, dest="toc_leader",
+                    help="目录标题与页码之间加引导点（……）")
     ap.add_argument("--theme", choices=sorted(THEMES), help="配色主题")
     ap.add_argument("--paper", choices=sorted(PAPERS), help="纸张")
     ap.add_argument("--landscape", action="store_true", default=None, help="横向")
@@ -1175,7 +1223,7 @@ def main():
     if a.style:
         resolve_style(a.style)  # 名称写错时立即报错并列出可选项
 
-    ov = dict(style=a.style, signoff=a.signoff, theme=a.theme, paper=a.paper, landscape=a.landscape,
+    ov = dict(style=a.style, signoff=a.signoff, toc_leader=a.toc_leader, theme=a.theme, paper=a.paper, landscape=a.landscape,
               toc_depth=a.toc_depth, cover=a.cover, toc=a.toc,
               break_before_h2=a.break_before_h2, font_size=a.font_size,
               browser=a.browser)

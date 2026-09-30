@@ -105,6 +105,7 @@ python md2pdf.py 手册.md --toc-depth 2
 - 样式只提供默认值，front-matter 里的其他配置会覆盖它
 - `gov` 默认章节连排（不每章分页），字号 13.5pt，适合篇幅短的汇报
 - 封面签字栏：`signoff: true` 加「编制 / 审核 / 批准」，`signoff: false` 去掉，也可以给列表自定义栏目
+- 目录引导点：`default` `gov` `steel` `graybl` 默认有；其余样式用 `toc_leader: true` 或 `--toc-leader` 打开，`toc_leader: false` 关闭
 - `--list-styles` 列出全部样式
 
 另有 `--theme` 只换配色、不换版式：`navy` `slate` `forest` `crimson` `ink`。
